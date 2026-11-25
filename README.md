@@ -24,6 +24,15 @@ siu/bd.py          conexión, tablas y datos de prueba
 siu/datos.py       capa de acceso a datos (SQL)
 siu/servicios.py   capa de lógica de negocio
 siu/interfaz.py    capa de presentación (Tkinter)
+siu/seguridad.py   hash de contraseñas
+pruebas/           casos de prueba automatizados (unittest)
+```
+
+## Pruebas
+
+```
+python -m pruebas.ejecutar_pruebas      # resumen de una línea por caso
+python -m unittest -v pruebas.test_sistema
 ```
 
 La base de datos `universidad.db` se crea automáticamente con datos de prueba.
