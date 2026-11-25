@@ -13,7 +13,17 @@ solicitudes.
 ## Ejecución
 
 ```
-python sistema_universitario.py
+python main.py
+```
+
+## Estructura
+
+```
+main.py            punto de entrada
+siu/bd.py          conexión, tablas y datos de prueba
+siu/datos.py       capa de acceso a datos (SQL)
+siu/servicios.py   capa de lógica de negocio
+siu/interfaz.py    capa de presentación (Tkinter)
 ```
 
 La base de datos `universidad.db` se crea automáticamente con datos de prueba.
