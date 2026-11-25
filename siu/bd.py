@@ -2,6 +2,8 @@
 import os
 import sqlite3
 
+from siu.seguridad import generar_hash
+
 RUTA_BD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "universidad.db")
 
 ESQUEMA = """
@@ -100,7 +102,7 @@ def cargar_datos_iniciales(con):
     for codigo, nombre, correo, contrasena, rol, carrera in USUARIOS:
         con.execute(
             "INSERT INTO usuarios(codigo, nombre, correo, contrasena, rol, carrera_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (codigo, nombre, correo, contrasena, rol, _id(con, "carreras", "clave", carrera)),
+            (codigo, nombre, correo, generar_hash(contrasena), rol, _id(con, "carreras", "clave", carrera)),
         )
     for clave, nombre, creditos, cupo, docente in MATERIAS:
         con.execute(

@@ -3,6 +3,7 @@ import datetime
 import random
 
 from siu import datos
+from siu.seguridad import generar_hash, verificar_contrasena
 
 TIPOS_CONSTANCIA = ["Constancia de estudios", "Constancia de calificaciones"]
 ESTADOS_SOLICITUD = ["Pendiente", "En proceso", "Lista para entrega", "Entregada", "Rechazada"]
@@ -16,8 +17,8 @@ class ErrorSistema(Exception):
 
 # ---------- autenticación ----------
 def iniciar_sesion(con, codigo, contrasena):
-    usuario = datos.buscar_usuario_por_credenciales(con, codigo, contrasena)
-    if usuario is None:
+    usuario = datos.buscar_usuario_por_codigo(con, codigo)
+    if usuario is None or not verificar_contrasena(contrasena, usuario["contrasena"]):
         raise ErrorSistema("Error")
     return usuario
 
@@ -70,8 +71,8 @@ def registrar_calificacion(con, inscripcion_id, valor):
 
 # ---------- administrador ----------
 def registrar_usuario(con, codigo, nombre, correo, contrasena, rol):
-    carrera_id = 1 if rol == "estudiante" else "NULL"
-    datos.insertar_usuario(con, codigo, nombre, correo, contrasena, rol, carrera_id)
+    carrera_id = 1 if rol == "estudiante" else None
+    datos.insertar_usuario(con, codigo, nombre, correo, generar_hash(contrasena), rol, carrera_id)
 
 
 def registrar_materia(con, clave, nombre, creditos, cupo, codigo_docente):
