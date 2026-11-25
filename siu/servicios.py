@@ -163,6 +163,10 @@ def inscribir_alumno(con, codigo_alumno, clave_materia, ciclo):
     for inscrita in datos.materias_de_estudiante(con, alumno["id"]):
         if inscrita["clave"] == clave_materia and inscrita["ciclo"] == ciclo:
             raise ErrorSistema(f"El alumno ya está inscrito en {clave_materia} en el ciclo {ciclo}.")
+    inscritos = datos.contar_inscritos(con, materia["id"], ciclo)
+    if inscritos >= materia["cupo"]:
+        raise ErrorSistema(f"La materia {clave_materia} ya no tiene cupo en el ciclo {ciclo} "
+                           f"({inscritos} de {materia['cupo']} lugares ocupados).")
     datos.insertar_inscripcion(con, alumno["id"], materia["id"], ciclo)
 
 

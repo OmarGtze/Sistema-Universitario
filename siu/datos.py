@@ -43,6 +43,12 @@ def insertar_inscripcion(con, estudiante_id, materia_id, ciclo):
     con.commit()
 
 
+def contar_inscritos(con, materia_id, ciclo):
+    return con.execute(
+        "SELECT COUNT(*) FROM inscripciones WHERE materia_id = ? AND ciclo = ?", (materia_id, ciclo)
+    ).fetchone()[0]
+
+
 def materias_de_estudiante(con, estudiante_id):
     return con.execute(
         "SELECT m.clave, m.nombre, i.ciclo, c.valor FROM inscripciones i "
