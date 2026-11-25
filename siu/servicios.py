@@ -4,7 +4,6 @@ Cada función valida los datos recibidos y, si algo es incorrecto, lanza ErrorSi
 con un mensaje claro que la interfaz muestra al usuario.
 """
 import datetime
-import random
 import re
 
 from siu import datos
@@ -82,7 +81,7 @@ def solicitar_constancia(con, estudiante_id, tipo):
     for solicitud in datos.solicitudes_de_estudiante(con, estudiante_id):
         if solicitud["tipo"] == tipo and solicitud["estado"] not in ESTADOS_FINALES:
             raise ErrorSistema(f"Ya tienes una solicitud de este tipo en trámite (folio {solicitud['folio']}).")
-    folio = "SOL-" + str(random.randint(1, 9999))
+    folio = f"SOL-{datos.siguiente_numero_solicitud(con):04d}"
     datos.insertar_solicitud(con, folio, estudiante_id, tipo, str(datetime.date.today()))
     return folio
 
@@ -109,7 +108,7 @@ def registrar_calificacion(con, inscripcion_id, valor):
         numero = float(str(valor).strip())
     except ValueError:
         raise ErrorSistema("La calificación debe ser un número.")
-    datos.insertar_calificacion(con, inscripcion_id, numero)
+    datos.guardar_calificacion(con, inscripcion_id, numero)
     return numero
 
 

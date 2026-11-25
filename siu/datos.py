@@ -64,12 +64,21 @@ def alumnos_de_materia(con, materia_id):
 
 
 # ---------- calificaciones ----------
-def insertar_calificacion(con, inscripcion_id, valor):
-    con.execute("INSERT INTO calificaciones(inscripcion_id, valor) VALUES (?, ?)", (inscripcion_id, valor))
+def guardar_calificacion(con, inscripcion_id, valor):
+    """Registra la calificación de una inscripción o la actualiza si ya existía (nunca la duplica)."""
+    existente = con.execute("SELECT id FROM calificaciones WHERE inscripcion_id = ?", (inscripcion_id,)).fetchone()
+    if existente:
+        con.execute("UPDATE calificaciones SET valor = ? WHERE id = ?", (valor, existente["id"]))
+    else:
+        con.execute("INSERT INTO calificaciones(inscripcion_id, valor) VALUES (?, ?)", (inscripcion_id, valor))
     con.commit()
 
 
 # ---------- solicitudes ----------
+def siguiente_numero_solicitud(con):
+    return con.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM solicitudes").fetchone()[0]
+
+
 def insertar_solicitud(con, folio, estudiante_id, tipo, fecha):
     con.execute(
         "INSERT INTO solicitudes(folio, estudiante_id, tipo, fecha, estado) VALUES (?, ?, ?, ?, 'Pendiente')",
