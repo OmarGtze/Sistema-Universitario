@@ -3,13 +3,15 @@
 La interfaz no ejecuta consultas SQL; todo lo pide a la capa de servicios.
 """
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 from siu import servicios
 from siu.servicios import ErrorSistema
 
 FUENTE_TITULO = ("Arial", 15, "bold")
 FUENTE_SUBTITULO = ("Arial", 11, "bold")
+COLOR_ERROR = "#B71C1C"
+COLOR_EXITO = "#1B5E20"
 
 
 # ---------- utilidades reutilizables (antes se repetían en cada ventana) ----------
@@ -28,6 +30,14 @@ def llenar_tabla(tabla, filas):
         tabla.insert("", "end", values=[("-" if v is None else v) for v in fila])
 
 
+def valor_seleccionado(tabla):
+    """Regresa el primer valor de la fila seleccionada o None si no hay selección."""
+    seleccion = tabla.selection()
+    if not seleccion:
+        return None
+    return tabla.item(seleccion[0])["values"][0]
+
+
 def crear_campo(padre, etiqueta, fila, columna, ancho=22, **opciones):
     ttk.Label(padre, text=etiqueta).grid(row=fila, column=columna, sticky="e", padx=5, pady=4)
     entrada = ttk.Entry(padre, width=ancho, **opciones)
@@ -42,16 +52,31 @@ class Aplicacion(tk.Tk):
         self.usuario = None
         self.title("Sistema Universitario")
         self.geometry("820x560")
+        self.barra_estado = tk.Label(self, anchor="w", padx=10, pady=6, font=("Arial", 10, "bold"))
+        self.barra_estado.pack(side="bottom", fill="x")
         self.contenedor = ttk.Frame(self, padding=12)
         self.contenedor.pack(fill="both", expand=True)
         self.mostrar_login()
 
     # ---------- mensajes ----------
     def mostrar_mensaje(self, texto, error=False):
-        if error:
-            messagebox.showerror("Error", texto)
-        else:
-            messagebox.showinfo("OK", texto)
+        """Muestra el mensaje en la barra inferior: rojo para errores y verde para confirmaciones."""
+        color = COLOR_ERROR if error else COLOR_EXITO
+        fondo = "#FDECEA" if error else "#E8F5E9"
+        self.barra_estado.config(text=("✖ " if error else "✔ ") + texto, fg=color, bg=fondo)
+
+    def ejecutar(self, accion, mensaje_exito):
+        """Ejecuta una acción de la interfaz y muestra el resultado; regresa True si tuvo éxito."""
+        try:
+            resultado = accion()
+        except ErrorSistema as error:
+            self.mostrar_mensaje(str(error), error=True)
+            return False
+        except Exception:
+            self.mostrar_mensaje("Ocurrió un error inesperado. Intenta de nuevo o avisa al administrador.", error=True)
+            return False
+        self.mostrar_mensaje(mensaje_exito.format(resultado=resultado))
+        return True
 
     def limpiar(self):
         for widget in self.contenedor.winfo_children():
@@ -61,6 +86,7 @@ class Aplicacion(tk.Tk):
     def mostrar_login(self):
         self.limpiar()
         self.usuario = None
+        self.barra_estado.config(text="", bg=self.cget("bg"))
         marco = ttk.Frame(self.contenedor, padding=30)
         marco.place(relx=0.5, rely=0.4, anchor="center")
         ttk.Label(marco, text="SISTEMA UNIVERSITARIO", font=FUENTE_TITULO).grid(row=0, column=0, columnspan=2, pady=15)
@@ -81,6 +107,7 @@ class Aplicacion(tk.Tk):
     # ---------- panel principal ----------
     def mostrar_panel(self):
         self.limpiar()
+        self.mostrar_mensaje(f"Sesión iniciada correctamente como {self.usuario['rol']}.")
         encabezado = ttk.Frame(self.contenedor)
         encabezado.pack(fill="x")
         ttk.Label(encabezado, text=f"Bienvenido(a), {self.usuario['nombre']}  ({self.usuario['rol']})",
@@ -139,13 +166,9 @@ class Aplicacion(tk.Tk):
                      [tuple(f) for f in servicios.solicitudes_de_estudiante(self.con, self.usuario["id"])])
 
     def solicitar_constancia(self):
-        try:
-            servicios.solicitar_constancia(self.con, self.usuario["id"], self.combo_tipo.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
-        self.cargar_solicitudes()
+        if self.ejecutar(lambda: servicios.solicitar_constancia(self.con, self.usuario["id"], self.combo_tipo.get()),
+                         "Solicitud registrada con el folio {resultado}. Puedes consultar su estado en esta pestaña."):
+            self.cargar_solicitudes()
 
     # ---------- docente ----------
     def pestana_grupos(self):
@@ -166,18 +189,18 @@ class Aplicacion(tk.Tk):
         ttk.Button(marco, text="Guardar calificación", command=self.guardar_calificacion).grid(row=2, column=2)
 
     def cargar_alumnos(self):
+        if self.combo_grupo.current() < 0:
+            return
         grupo = self.grupos[self.combo_grupo.current()]
         llenar_tabla(self.tabla_alumnos, [tuple(f) for f in servicios.alumnos_de_materia(self.con, grupo["id"])])
 
     def guardar_calificacion(self):
-        try:
-            inscripcion_id = self.tabla_alumnos.item(self.tabla_alumnos.focus())["values"][0]
-            servicios.registrar_calificacion(self.con, inscripcion_id, self.entrada_calificacion.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
-        self.cargar_alumnos()
+        inscripcion_id = valor_seleccionado(self.tabla_alumnos)
+        if self.ejecutar(lambda: servicios.registrar_calificacion(self.con, inscripcion_id,
+                                                                  self.entrada_calificacion.get()),
+                         "Calificación de {resultado} guardada correctamente."):
+            self.entrada_calificacion.delete(0, "end")
+            self.cargar_alumnos()
 
     # ---------- administrador ----------
     def pestana_usuarios(self):
@@ -192,13 +215,13 @@ class Aplicacion(tk.Tk):
         ttk.Button(marco, text="Registrar usuario", command=self.registrar_usuario).grid(row=3, column=3, pady=10, sticky="e")
 
     def registrar_usuario(self):
-        try:
-            servicios.registrar_usuario(self.con, self.usuario_codigo.get(), self.usuario_nombre.get(),
-                                        self.usuario_correo.get(), self.usuario_contrasena.get(), self.usuario_rol.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
+        codigo = self.usuario_codigo.get().strip()
+        if self.ejecutar(lambda: servicios.registrar_usuario(
+                self.con, codigo, self.usuario_nombre.get(), self.usuario_correo.get(),
+                self.usuario_contrasena.get(), self.usuario_rol.get()),
+                f"Usuario {codigo} registrado correctamente."):
+            for campo in (self.usuario_codigo, self.usuario_nombre, self.usuario_correo, self.usuario_contrasena):
+                campo.delete(0, "end")
 
     def pestana_materias(self):
         marco = self.nueva_pestana("Materias")
@@ -210,13 +233,11 @@ class Aplicacion(tk.Tk):
         ttk.Button(marco, text="Registrar materia", command=self.registrar_materia).grid(row=3, column=3, pady=10, sticky="e")
 
     def registrar_materia(self):
-        try:
-            servicios.registrar_materia(self.con, self.materia_clave.get(), self.materia_nombre.get(),
-                                        self.materia_creditos.get(), self.materia_cupo.get(), self.materia_docente.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
+        clave = self.materia_clave.get().strip().upper()
+        self.ejecutar(lambda: servicios.registrar_materia(
+            self.con, clave, self.materia_nombre.get(), self.materia_creditos.get(),
+            self.materia_cupo.get(), self.materia_docente.get()),
+            f"Materia {clave} registrada correctamente.")
 
     def pestana_inscripciones(self):
         marco = self.nueva_pestana("Inscripciones")
@@ -226,13 +247,10 @@ class Aplicacion(tk.Tk):
         ttk.Button(marco, text="Inscribir", command=self.inscribir_alumno).grid(row=3, column=1, pady=10, sticky="e")
 
     def inscribir_alumno(self):
-        try:
-            servicios.inscribir_alumno(self.con, self.inscripcion_alumno.get(), self.inscripcion_materia.get(),
-                                       self.inscripcion_ciclo.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
+        alumno = self.inscripcion_alumno.get().strip()
+        materia = self.inscripcion_materia.get().strip().upper()
+        self.ejecutar(lambda: servicios.inscribir_alumno(self.con, alumno, materia, self.inscripcion_ciclo.get()),
+                      f"Alumno {alumno} inscrito en {materia}.")
 
     def pestana_solicitudes(self):
         marco = self.nueva_pestana("Solicitudes")
@@ -250,14 +268,11 @@ class Aplicacion(tk.Tk):
         llenar_tabla(self.tabla_todas, [tuple(f) for f in servicios.todas_las_solicitudes(self.con)])
 
     def cambiar_estado(self):
-        try:
-            folio = self.tabla_todas.item(self.tabla_todas.focus())["values"][0]
-            servicios.atender_solicitud(self.con, folio, self.combo_estado.get())
-        except Exception:
-            self.mostrar_mensaje("Error", error=True)
-            return
-        self.mostrar_mensaje("Listo")
-        self.cargar_todas_las_solicitudes()
+        folio = valor_seleccionado(self.tabla_todas)
+        estado = self.combo_estado.get()
+        if self.ejecutar(lambda: servicios.atender_solicitud(self.con, folio, estado),
+                         f"La solicitud {folio} cambió a «{estado}»."):
+            self.cargar_todas_las_solicitudes()
 
 
 def iniciar(con):
