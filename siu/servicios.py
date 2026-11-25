@@ -14,6 +14,8 @@ ESTADOS_SOLICITUD = ["Pendiente", "En proceso", "Lista para entrega", "Entregada
 ESTADOS_FINALES = ["Entregada", "Rechazada"]
 ROLES = ["estudiante", "docente", "administrador"]
 CALIFICACION_APROBATORIA = 60
+CALIFICACION_MINIMA = 0
+CALIFICACION_MAXIMA = 100
 
 PATRON_CODIGO = re.compile(r"^[A-Za-z0-9]{4,15}$")
 PATRON_CORREO = re.compile(r"^[\w.+-]+@[\w-]+(\.[\w-]+)+$")
@@ -108,6 +110,8 @@ def registrar_calificacion(con, inscripcion_id, valor):
         numero = float(str(valor).strip())
     except ValueError:
         raise ErrorSistema("La calificación debe ser un número.")
+    if not CALIFICACION_MINIMA <= numero <= CALIFICACION_MAXIMA:
+        raise ErrorSistema(f"La calificación debe estar entre {CALIFICACION_MINIMA} y {CALIFICACION_MAXIMA}.")
     datos.guardar_calificacion(con, inscripcion_id, numero)
     return numero
 
