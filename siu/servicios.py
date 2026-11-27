@@ -130,6 +130,8 @@ def registrar_usuario(con, codigo, nombre, correo, contrasena, rol):
         raise ErrorSistema("Selecciona un rol válido.")
     if datos.buscar_usuario_por_codigo(con, codigo) is not None:
         raise ErrorSistema(f"El código {codigo} ya está registrado.")
+    if datos.buscar_usuario_por_correo(con, correo) is not None:
+        raise ErrorSistema(f"El correo {correo} ya está registrado con otro usuario.")
     carrera_id = 1 if rol == "estudiante" else None
     datos.insertar_usuario(con, codigo, nombre, correo, generar_hash(contrasena), rol, carrera_id)
 

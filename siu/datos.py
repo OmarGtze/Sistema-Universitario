@@ -10,6 +10,10 @@ def buscar_usuario_por_codigo(con, codigo):
     return con.execute("SELECT * FROM usuarios WHERE codigo = ?", (codigo,)).fetchone()
 
 
+def buscar_usuario_por_correo(con, correo):
+    return con.execute("SELECT * FROM usuarios WHERE LOWER(correo) = LOWER(?)", (correo,)).fetchone()
+
+
 def insertar_usuario(con, codigo, nombre, correo, contrasena_hash, rol, carrera_id):
     con.execute(
         "INSERT INTO usuarios(codigo, nombre, correo, contrasena, rol, carrera_id) VALUES (?, ?, ?, ?, ?, ?)",
